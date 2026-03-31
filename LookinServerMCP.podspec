@@ -7,7 +7,6 @@ Pod::Spec.new do |spec|
   spec.license      = "GPL-3.0"
   spec.author       = { "hepiao3" => "hp193220847@gmail.com" }
   spec.ios.deployment_target  = "9.0"
-  spec.visionos.deployment_target = "1.0"
   spec.default_subspecs = 'Core'
   spec.source       = { :git => "https://github.com/hepiao3/LookinServer.git", :tag => "1.0.0"}
   spec.framework  = "UIKit"
