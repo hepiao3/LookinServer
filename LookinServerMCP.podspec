@@ -7,7 +7,6 @@ Pod::Spec.new do |spec|
   spec.license      = "GPL-3.0"
   spec.author       = { "hepiao3" => "hp193220847@gmail.com" }
   spec.ios.deployment_target  = "9.0"
-  spec.tvos.deployment_target  = '9.0'
   spec.visionos.deployment_target = "1.0"
   spec.default_subspecs = 'Core'
   spec.source       = { :git => "https://github.com/hepiao3/LookinServer.git", :tag => "1.0.0"}
@@ -23,7 +22,7 @@ Pod::Spec.new do |spec|
   end
 
   spec.subspec 'Swift' do |ss|
-    ss.dependency 'LookinServer/Core'
+    ss.dependency 'LookinServerMCP/Core'
     ss.source_files = 'Src/Swift/**/*'
     ss.pod_target_xcconfig = {
        'GCC_PREPROCESSOR_DEFINITIONS' => '$(inherited) LOOKIN_SERVER_SWIFT_ENABLED=1',
@@ -32,7 +31,7 @@ Pod::Spec.new do |spec|
   end
 
   spec.subspec 'NoHook' do |ss|
-    ss.dependency 'LookinServer/Core'
+    ss.dependency 'LookinServerMCP/Core'
     ss.pod_target_xcconfig = {
        'GCC_PREPROCESSOR_DEFINITIONS' => '$(inherited) LOOKIN_SERVER_DISABLE_HOOK=1',
     }
@@ -42,7 +41,7 @@ Pod::Spec.new do |spec|
   # "pod 'LookinServer', :subspecs => ['Swift', 'NoHook'], :configurations => ['Debug']" is not supported by CocoaPods
   # https://github.com/QMUI/LookinServer/issues/134
   spec.subspec 'SwiftAndNoHook' do |ss|
-    ss.dependency 'LookinServer/Core'
+    ss.dependency 'LookinServerMCP/Core'
     ss.source_files = 'Src/Swift/**/*'
     ss.pod_target_xcconfig = {
        'GCC_PREPROCESSOR_DEFINITIONS' => '$(inherited) LOOKIN_SERVER_SWIFT_ENABLED=1 LOOKIN_SERVER_DISABLE_HOOK=1',
