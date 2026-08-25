@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name         = "LookinServerMCP"
-  spec.version      = "1.0.0"
+  spec.version      = "1.0.1"
   spec.summary      = "The iOS framework of Lookin with MCP HTTP server support."
   spec.description  = "Embed this framework into your iOS project to enable Lookin mac app and lookin-mcp direct connection via HTTP."
   spec.homepage     = "https://github.com/hepiao3/LookinServer"
@@ -8,7 +8,7 @@ Pod::Spec.new do |spec|
   spec.author       = { "hepiao3" => "hp193220847@gmail.com" }
   spec.ios.deployment_target  = "9.0"
   spec.default_subspecs = 'Core'
-  spec.source       = { :git => "https://github.com/hepiao3/LookinServer.git", :tag => "1.0.0"}
+  spec.source       = { :git => "https://github.com/eval3/LookinServer.git", :tag => "1.0.1"}
   spec.framework  = "UIKit"
   spec.requires_arc = true
     
