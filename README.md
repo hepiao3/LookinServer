@@ -34,6 +34,14 @@ macOS app: https://github.com/hughkli/Lookin/
 # Acknowledgements
 https://qxh1ndiez2w.feishu.cn/docx/YIFjdE4gIolp3hxn1tGckiBxnWf
 
+## MCP attribute response
+
+Attribute objects returned by `GET /view/:oid/attributes` use the runtime property name in `identifier` (for example, `cornerRadius`) rather than Lookin's compact internal identifier. Group and section objects expose their readable `title` when one exists. Lookin's compact internal identifiers are not included in the HTTP response.
+
+Floating-point numbers in attribute `value` payloads are rounded to two decimal places. This applies to scalar values as well as geometry, edge-inset, and color components; Boolean and integer values keep their original JSON types.
+
+Floating-point values returned by `GET /hierarchy`, including node frames and alpha values, are also rounded to two decimal places.
+
 ---
 # 简介
 Lookin 可以查看与修改 iOS App 里的 UI 对象，类似于 Xcode 自带的 UI Inspector 工具，或另一款叫做 Reveal 的软件。

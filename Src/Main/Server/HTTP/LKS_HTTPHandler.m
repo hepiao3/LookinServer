@@ -10,14 +10,23 @@
 #import "LookinAttributesSection.h"
 #import "LookinAttribute.h"
 #import "LookinAttributeModification.h"
+#import "LookinDashboardBlueprint.h"
 #import "LKS_AttrGroupsMaker.h"
 #import "LKS_InbuiltAttrModificationHandler.h"
 #import "LKS_ConnectionManager.h"
 #import "NSObject+LookinServer.h"
 #import "LookinAttrType.h"
 #import <UIKit/UIKit.h>
+#import <math.h>
 
 static const uint16_t kLKS_HTTPPort = 47190;
+
+static NSNumber *LKSNumberRoundedToTwoDecimalPlaces(double value) {
+    double rounded = round(value * 100.0) / 100.0;
+    // Avoid serializing tiny negative values as -0.
+    if (fabs(rounded) < 0.005) rounded = 0;
+    return @(rounded);
+}
 
 @interface LKS_HTTPHandler ()
 @property(nonatomic, strong) LKS_HTTPServer *httpServer;
@@ -130,10 +139,13 @@ static const uint16_t kLKS_HTTPPort = 47190;
     dict[@"className"] = className ?: @"";
 
     if (item.isHidden) dict[@"hidden"] = @YES;
-    if (item.alpha < 0.999f) dict[@"alpha"] = @(item.alpha);
+    if (item.alpha < 0.999f) dict[@"alpha"] = LKSNumberRoundedToTwoDecimalPlaces(item.alpha);
 
     CGRect frame = item.frame;
-    dict[@"frame"] = @[@(frame.origin.x), @(frame.origin.y), @(frame.size.width), @(frame.size.height)];
+    dict[@"frame"] = @[LKSNumberRoundedToTwoDecimalPlaces(frame.origin.x),
+                       LKSNumberRoundedToTwoDecimalPlaces(frame.origin.y),
+                       LKSNumberRoundedToTwoDecimalPlaces(frame.size.width),
+                       LKSNumberRoundedToTwoDecimalPlaces(frame.size.height)];
 
     if (item.customDisplayTitle.length > 0) {
         dict[@"customTitle"] = item.customDisplayTitle;
@@ -183,13 +195,18 @@ static const uint16_t kLKS_HTTPPort = 47190;
 
     for (LookinAttributesGroup *group in groups) {
         NSMutableDictionary *groupDict = [NSMutableDictionary dictionary];
-        groupDict[@"identifier"] = group.identifier ?: @"";
-        groupDict[@"title"] = group.userCustomTitle ?: group.identifier ?: @"";
+        NSString *groupTitle = [group isUserCustom]
+            ? group.userCustomTitle
+            : [LookinDashboardBlueprint groupTitleWithGroupID:group.identifier];
+        if (groupTitle.length > 0) groupDict[@"title"] = groupTitle;
 
         NSMutableArray *sectionsJSON = [NSMutableArray array];
         for (LookinAttributesSection *section in group.attrSections) {
             NSMutableDictionary *secDict = [NSMutableDictionary dictionary];
-            secDict[@"identifier"] = section.identifier ?: @"";
+            if (![section isUserCustom]) {
+                NSString *sectionTitle = [LookinDashboardBlueprint sectionTitleWithSectionID:section.identifier];
+                if (sectionTitle.length > 0) secDict[@"title"] = sectionTitle;
+            }
 
             NSMutableArray *attrsJSON = [NSMutableArray array];
             for (LookinAttribute *attr in section.attributes) {
@@ -210,7 +227,7 @@ static const uint16_t kLKS_HTTPPort = 47190;
     if (!attr.identifier) return nil;
 
     NSMutableDictionary *dict = [NSMutableDictionary dictionary];
-    dict[@"identifier"] = attr.identifier;
+    dict[@"identifier"] = [self _propertyNameForAttribute:attr];
     dict[@"attrType"] = @(attr.attrType);
     dict[@"typeDescription"] = [self _descriptionForAttrType:attr.attrType];
 
@@ -224,6 +241,49 @@ static const uint16_t kLKS_HTTPPort = 47190;
     return dict;
 }
 
+- (NSString *)_propertyNameForAttribute:(LookinAttribute *)attr {
+    if ([attr isUserCustom]) {
+        return attr.displayTitle.length > 0 ? attr.displayTitle : @"customAttribute";
+    }
+
+    SEL setter = [LookinDashboardBlueprint setterWithAttrID:attr.identifier];
+    SEL getter = [LookinDashboardBlueprint getterWithAttrID:attr.identifier];
+    NSString *name = nil;
+
+    // Prefer the setter because Boolean properties often use an `isFoo` getter
+    // while their actual property name is `foo` (for example, hidden/isHidden).
+    NSString *setterName = setter ? NSStringFromSelector(setter) : nil;
+    if ([setterName hasPrefix:@"set"] && [setterName hasSuffix:@":"] && setterName.length > 4) {
+        NSString *stem = [setterName substringWithRange:NSMakeRange(3, setterName.length - 4)];
+        name = [NSString stringWithFormat:@"%@%@", [stem substringToIndex:1].lowercaseString, [stem substringFromIndex:1]];
+    }
+
+    if (name.length == 0 && getter) {
+        name = NSStringFromSelector(getter);
+        if ([name hasPrefix:@"is"] && name.length > 2) {
+            unichar firstPropertyCharacter = [name characterAtIndex:2];
+            if ([[NSCharacterSet uppercaseLetterCharacterSet] characterIsMember:firstPropertyCharacter]) {
+                NSString *stem = [name substringFromIndex:2];
+                name = [NSString stringWithFormat:@"%@%@", [stem substringToIndex:1].lowercaseString, [stem substringFromIndex:1]];
+            }
+        }
+    }
+
+    // Lookin adapter accessors expose UIKit/Core Animation properties through an
+    // lks_ prefix. That prefix is an implementation detail, not part of the API.
+    if ([name hasPrefix:@"lks_"]) {
+        name = [name substringFromIndex:4];
+    }
+
+    if (name.length > 0) return name;
+
+    NSString *title = [LookinDashboardBlueprint fullTitleWithAttrID:attr.identifier];
+    if (title.length > 0) {
+        return [NSString stringWithFormat:@"%@%@", [title substringToIndex:1].lowercaseString, [title substringFromIndex:1]];
+    }
+    return @"unknownProperty";
+}
+
 - (id)_jsonValueForAttrValue:(id)value type:(LookinAttrType)type {
     if (!value || [value isKindOfClass:[NSNull class]]) return [NSNull null];
 
@@ -233,6 +293,11 @@ static const uint16_t kLKS_HTTPPort = 47190;
 
         case LookinAttrTypeFloat:
         case LookinAttrTypeDouble:
+            if ([value isKindOfClass:[NSNumber class]]) {
+                return LKSNumberRoundedToTwoDecimalPlaces([(NSNumber *)value doubleValue]);
+            }
+            return [NSNull null];
+
         case LookinAttrTypeLong:
         case LookinAttrTypeEnumInt:
         case LookinAttrTypeEnumLong:
@@ -245,34 +310,48 @@ static const uint16_t kLKS_HTTPPort = 47190;
         case LookinAttrTypeCGPoint: {
             if (![value isKindOfClass:[NSValue class]]) return [NSNull null];
             CGPoint p = [(NSValue *)value CGPointValue];
-            return @{ @"x": @(p.x), @"y": @(p.y) };
+            return @{ @"x": LKSNumberRoundedToTwoDecimalPlaces(p.x),
+                      @"y": LKSNumberRoundedToTwoDecimalPlaces(p.y) };
         }
         case LookinAttrTypeCGSize: {
             if (![value isKindOfClass:[NSValue class]]) return [NSNull null];
             CGSize s = [(NSValue *)value CGSizeValue];
-            return @{ @"width": @(s.width), @"height": @(s.height) };
+            return @{ @"width": LKSNumberRoundedToTwoDecimalPlaces(s.width),
+                      @"height": LKSNumberRoundedToTwoDecimalPlaces(s.height) };
         }
         case LookinAttrTypeCGRect: {
             if (![value isKindOfClass:[NSValue class]]) return [NSNull null];
             CGRect r = [(NSValue *)value CGRectValue];
-            return @{ @"x": @(r.origin.x), @"y": @(r.origin.y), @"width": @(r.size.width), @"height": @(r.size.height) };
+            return @{ @"x": LKSNumberRoundedToTwoDecimalPlaces(r.origin.x),
+                      @"y": LKSNumberRoundedToTwoDecimalPlaces(r.origin.y),
+                      @"width": LKSNumberRoundedToTwoDecimalPlaces(r.size.width),
+                      @"height": LKSNumberRoundedToTwoDecimalPlaces(r.size.height) };
         }
         case LookinAttrTypeUIEdgeInsets: {
             if (![value isKindOfClass:[NSValue class]]) return [NSNull null];
             UIEdgeInsets insets = [(NSValue *)value UIEdgeInsetsValue];
-            return @{ @"top": @(insets.top), @"left": @(insets.left), @"bottom": @(insets.bottom), @"right": @(insets.right) };
+            return @{ @"top": LKSNumberRoundedToTwoDecimalPlaces(insets.top),
+                      @"left": LKSNumberRoundedToTwoDecimalPlaces(insets.left),
+                      @"bottom": LKSNumberRoundedToTwoDecimalPlaces(insets.bottom),
+                      @"right": LKSNumberRoundedToTwoDecimalPlaces(insets.right) };
         }
         case LookinAttrTypeUIColor: {
             if ([value isKindOfClass:[NSArray class]]) {
                 NSArray<NSNumber *> *components = (NSArray *)value;
                 if (components.count >= 4) {
-                    return @{ @"r": components[0], @"g": components[1], @"b": components[2], @"a": components[3] };
+                    return @{ @"r": LKSNumberRoundedToTwoDecimalPlaces(components[0].doubleValue),
+                              @"g": LKSNumberRoundedToTwoDecimalPlaces(components[1].doubleValue),
+                              @"b": LKSNumberRoundedToTwoDecimalPlaces(components[2].doubleValue),
+                              @"a": LKSNumberRoundedToTwoDecimalPlaces(components[3].doubleValue) };
                 }
             }
             if ([value isKindOfClass:[UIColor class]]) {
                 CGFloat r, g, b, a;
                 if ([(UIColor *)value getRed:&r green:&g blue:&b alpha:&a]) {
-                    return @{ @"r": @(r), @"g": @(g), @"b": @(b), @"a": @(a) };
+                    return @{ @"r": LKSNumberRoundedToTwoDecimalPlaces(r),
+                              @"g": LKSNumberRoundedToTwoDecimalPlaces(g),
+                              @"b": LKSNumberRoundedToTwoDecimalPlaces(b),
+                              @"a": LKSNumberRoundedToTwoDecimalPlaces(a) };
                 }
             }
             return [value description];
