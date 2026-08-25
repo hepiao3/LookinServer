@@ -4,6 +4,8 @@
 
 @class LKS_HTTPRequest, LKS_HTTPResponse;
 
+NS_ASSUME_NONNULL_BEGIN
+
 typedef void (^LKS_HTTPCompletionBlock)(LKS_HTTPResponse *response);
 typedef void (^LKS_HTTPRequestHandler)(LKS_HTTPRequest *request, LKS_HTTPCompletionBlock completion);
 
@@ -14,7 +16,7 @@ typedef void (^LKS_HTTPRequestHandler)(LKS_HTTPRequest *request, LKS_HTTPComplet
 
 @property(nonatomic, copy) NSString *method;
 @property(nonatomic, copy) NSString *path;
-@property(nonatomic, strong) NSDictionary *jsonBody;
+@property(nonatomic, strong, nullable) NSDictionary *jsonBody;
 /// 从路径 /view/:oid/... 中提取的 oid，不存在则为 0
 @property(nonatomic, assign) unsigned long oidParam;
 
@@ -38,13 +40,15 @@ typedef void (^LKS_HTTPRequestHandler)(LKS_HTTPRequest *request, LKS_HTTPComplet
 
 @interface LKS_HTTPServer : NSObject
 
-@property(nonatomic, copy) LKS_HTTPRequestHandler requestHandler;
+@property(nonatomic, copy, nullable) LKS_HTTPRequestHandler requestHandler;
 @property(nonatomic, assign, readonly) BOOL isRunning;
 @property(nonatomic, assign, readonly) uint16_t port;
 
-- (BOOL)startWithPort:(uint16_t)port error:(NSError **)outError;
+- (BOOL)startWithPort:(uint16_t)port error:(NSError * _Nullable * _Nullable)outError;
 - (void)stop;
 
 @end
+
+NS_ASSUME_NONNULL_END
 
 #endif /* SHOULD_COMPILE_LOOKIN_SERVER */

@@ -140,8 +140,12 @@
         LookinHierarchyFile *file = [LookinHierarchyFile new];
         file.serverVersion = info.serverVersion;
         file.hierarchyInfo = info;
-        NSData *data = [NSKeyedArchiver archivedDataWithRootObject:file];
+        NSError *archiveError = nil;
+        NSData *data = [NSKeyedArchiver archivedDataWithRootObject:file
+                                             requiringSecureCoding:NO
+                                                             error:&archiveError];
         if (!data) {
+            NSLog(@"LookinServer - Failed to archive exported hierarchy: %@", archiveError);
             return;
         }
         

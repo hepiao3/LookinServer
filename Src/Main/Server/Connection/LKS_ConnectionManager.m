@@ -169,7 +169,14 @@ NSString *const LKS_ConnectionDidEndNotificationName = @"LKS_ConnectionDidEndNot
 
 - (void)_sendData:(NSObject *)data frameOfType:(uint32_t)frameOfType tag:(uint32_t)tag {
     if (self.peerChannel_) {
-        NSData *archivedData = [NSKeyedArchiver archivedDataWithRootObject:data];
+        NSError *archiveError = nil;
+        NSData *archivedData = [NSKeyedArchiver archivedDataWithRootObject:data
+                                                     requiringSecureCoding:NO
+                                                                     error:&archiveError];
+        if (!archivedData) {
+            NSLog(@"LookinServer - Failed to archive response: %@", archiveError);
+            return;
+        }
         dispatch_data_t payload = [archivedData createReferencingDispatchData];
         
         [self.peerChannel_ sendFrameOfType:frameOfType tag:tag withPayload:payload callback:^(NSError *error) {
@@ -195,7 +202,16 @@ NSString *const LKS_ConnectionDidEndNotificationName = @"LKS_ConnectionDidEndNot
 - (void)ioFrameChannel:(Lookin_PTChannel*)channel didReceiveFrameOfType:(uint32_t)type tag:(uint32_t)tag payload:(Lookin_PTData*)payload {
     id object = nil;
     if (payload) {
-        id unarchivedObject = [NSKeyedUnarchiver unarchiveObjectWithData:[NSData dataWithContentsOfDispatchData:payload.dispatchData]];
+        NSData *payloadData = [NSData dataWithContentsOfDispatchData:payload.dispatchData];
+        NSError *unarchiveError = nil;
+        NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingFromData:payloadData
+                                                                                   error:&unarchiveError];
+        unarchiver.requiresSecureCoding = NO;
+        id unarchivedObject = [unarchiver decodeObjectForKey:NSKeyedArchiveRootObjectKey];
+        [unarchiver finishDecoding];
+        if (!unarchivedObject && unarchiveError) {
+            NSLog(@"LookinServer - Failed to unarchive request: %@", unarchiveError);
+        }
         if ([unarchivedObject isKindOfClass:[LookinConnectionAttachment class]]) {
             LookinConnectionAttachment *attachment = (LookinConnectionAttachment *)unarchivedObject;
             object = attachment.data;

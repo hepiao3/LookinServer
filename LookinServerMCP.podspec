@@ -6,7 +6,8 @@ Pod::Spec.new do |spec|
   spec.homepage     = "https://github.com/eval3/LookinServer"
   spec.license      = "GPL-3.0"
   spec.author       = { "hepiao3" => "hp193220847@gmail.com" }
-  spec.ios.deployment_target  = "9.0"
+  spec.ios.deployment_target  = "12.0"
+  spec.swift_versions = ['5.0']
   spec.default_subspecs = 'Core'
   spec.source       = { :git => "https://github.com/eval3/LookinServer.git", :tag => "1.0.1"}
   spec.framework  = "UIKit"
