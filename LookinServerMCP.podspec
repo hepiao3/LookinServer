@@ -3,7 +3,7 @@ Pod::Spec.new do |spec|
   spec.version      = "1.0.1"
   spec.summary      = "The iOS framework of Lookin with MCP HTTP server support."
   spec.description  = "Embed this framework into your iOS project to enable Lookin mac app and lookin-mcp direct connection via HTTP."
-  spec.homepage     = "https://github.com/hepiao3/LookinServer"
+  spec.homepage     = "https://github.com/eval3/LookinServer"
   spec.license      = "GPL-3.0"
   spec.author       = { "hepiao3" => "hp193220847@gmail.com" }
   spec.ios.deployment_target  = "9.0"
